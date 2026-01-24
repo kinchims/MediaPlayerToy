@@ -1,5 +1,5 @@
 Simple media player toy for children. Configured for use an MF-RC522 RFID chip to read, and write chips and play the media associated with them. 
-Media should be located in /files with simple integer valued names (1.mp4, 2.mp4, etc.) (extension should not matter, all types of media should be playable).
+Media should be located in /config/data with simple integer valued names (1.mp4, 2.mp4, etc.) (extension should not matter, all types of media should be playable).
 To use the RFID trainer, start the app with the trainer commandline args. (./media-player trainer). This will prompt you to scan RFID tags so that they can be written a simple id (1-10).
 
 to start the actual application, use ./media-player or start the systemd service provided. Once the RFID reader detects a chip; it will play the media associated with it through DRM.
