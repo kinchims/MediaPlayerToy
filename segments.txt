@@ -1,0 +1,15 @@
+ffmpeg -ss 00:00:08 -to 00:02:11 -i full.mp4 -c copy 1.mp4
+ffmpeg -ss 00:02:21 -to 00:04:35 -i full.mp4 -c copy 2.mp4
+ffmpeg -ss 00:04:48 -to 00:06:24 -i full.mp4 -c copy 3.mp4
+ffmpeg -ss 00:06:35 -to 00:08:26 -i full.mp4 -c copy 4.mp4
+ffmpeg -ss 00:08:35 -to 00:10:13 -i full.mp4 -c copy 5.mp4
+ffmpeg -ss 00:10:17 -to 00:12:06 -i full.mp4 -c copy 6.mp4
+ffmpeg -ss 00:12:13 -to 00:14:08 -i full.mp4 -c copy 7.mp4
+ffmpeg -ss 00:14:16 -to 00:15:49 -i full.mp4 -c copy 8.mp4
+ffmpeg -ss 00:15:53 -to 00:17:33 -i full.mp4 -c copy 9.mp4
+ffmpeg -ss 00:17:42 -to 00:19:56 -i full.mp4 -c copy 10.mp4
+ffmpeg -ss 00:20:02 -to 00:21:24 -i full.mp4 -c copy 11.mp4
+
+
+
+

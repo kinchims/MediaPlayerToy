@@ -1,0 +1,12 @@
+  {
+            "name": "Launch Go Client",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "env": {
+                "LOG_LEVEL": "debug",
+                "GST_DEBUG": "3",
+                "GST_DEBUG_DUMP_DOT_DIR": "~/"
+            },
+            "program": "${workspaceFolder}/app"
+}

@@ -1,0 +1,28 @@
+# docker buildx build --output=out -f ./Dockerfile-client-64 --platform linux/arm64  .
+# docker build --builder=arm --output=out --build-arg -f ./Dockerfile-client-64 --platform linux/arm64  .
+
+ARG CHANNEL=local
+ARG APPVERSION=0.0.0
+FROM golang:1.25.1-bookworm AS base
+ARG CHANNEL
+ARG APPVERSION
+WORKDIR /code
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y build-essential libprotobuf-dev protobuf-compiler libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-pulseaudio libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+COPY ./app /code 
+#ldflags -s -w
+RUN --mount=type=cache,target=/home/sean/go/pkg/mod \ 
+    --mount=type=cache,target=/root/.cache/go-build \
+CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++  go build -o "./media-player"
+RUN mv "/code/media-player" /usr/local/bin 
+RUN mkdir /data
+RUN rm -rf /code 
+WORKDIR /usr/local/bin
+
+FROM scratch
+ARG CHANNEL
+ARG APPVERSION
+COPY --from=base ["/usr/local/bin/media-player", "/"]
+
+ENTRYPOINT ["/media-player"]
