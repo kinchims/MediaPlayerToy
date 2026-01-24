@@ -116,7 +116,6 @@ func (player *VideoPlayer) PlayFile(file string) {
 	player.pipeline.SendEvent(gst.NewFlushStopEvent(true))
 	src.SetProperty("location", file)
 	src.SyncStateWithParent()
-	gst.NewFlushStartEvent()
 	player.pipeline.SendEvent(gst.NewReconfigureEvent())
 	player.pipeline.BlockSetState(gst.StatePlaying)
 }
