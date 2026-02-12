@@ -55,8 +55,7 @@ func main() {
 	go func() {
 		for {
 			id := <-reader.CardData
-			log.Print(id)
-			log.Print(player.currentFile)
+
 			if id == "" {
 				player.Dispose()
 			} else {
