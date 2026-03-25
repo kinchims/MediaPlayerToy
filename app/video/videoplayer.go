@@ -1,8 +1,8 @@
-package main
+package video
 
 import (
+	"fmt"
 	"log"
-	"sync"
 
 	"github.com/go-gst/go-glib/glib"
 	"github.com/go-gst/go-gst/gst"
@@ -11,8 +11,7 @@ import (
 type VideoPlayer struct {
 	pipeline    *gst.Pipeline
 	loop        *glib.MainLoop
-	mu          sync.Mutex
-	currentFile string
+	CurrentFile string
 }
 
 func NewVideoPlayer() *VideoPlayer {
@@ -20,16 +19,15 @@ func NewVideoPlayer() *VideoPlayer {
 }
 
 func NewVideoPlayerPreloaded(location string) *VideoPlayer {
-	pipeline, err := gst.NewPipelineFromString("filesrc name=src ! decodebin name=decode decode. ! queue ! audioconvert ! audioresample ! autoaudiosink decode. ! queue ! videoconvert ! videoscale ! video/x-raw,width=800,height=480 ! kmssink")
+	pipeline, err := gst.NewPipelineFromString(fmt.Sprintf("filesrc location=%s name=src ! decodebin name=decode decode. ! queue ! audioconvert ! audioresample ! alsasink device=hw:CARD=wm8960soundcard,DEV=0 decode. ! queue ! videoconvert ! kmssink connector-id=33", location))
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	player := &VideoPlayer{
 		pipeline:    pipeline,
-		currentFile: location,
+		CurrentFile: location,
 		loop:        glib.NewMainLoop(glib.MainContextDefault(), false),
-		mu:          sync.Mutex{},
 	}
 
 	if err != nil {
@@ -59,14 +57,10 @@ func (player *VideoPlayer) IsPlaying() bool {
 }
 
 func (player *VideoPlayer) Pause() {
-	player.mu.Lock()
-	defer player.mu.Unlock()
 	player.pipeline.BlockSetState(gst.StatePaused)
 }
 
 func (player *VideoPlayer) Stop() {
-	player.mu.Lock()
-	defer player.mu.Unlock()
 	player.pipeline.BlockSetState(gst.StateNull)
 	player.pipeline.SendEvent(gst.NewFlushStartEvent())
 	src, err := player.pipeline.GetElementByName("src")
@@ -79,7 +73,7 @@ func (player *VideoPlayer) Stop() {
 }
 
 func (player *VideoPlayer) Play() {
-	player.pipeline.BlockSetState(gst.StatePlaying)
+	player.pipeline.SetState(gst.StatePlaying)
 }
 
 func (player *VideoPlayer) Reset() {
@@ -87,17 +81,13 @@ func (player *VideoPlayer) Reset() {
 	player.pipeline.SeekSimple(0, gst.FormatTime, gst.SeekFlagFlush|gst.SeekFlagAccurate)
 }
 func (player *VideoPlayer) Dispose() {
-	player.mu.Lock()
-	defer player.mu.Unlock()
 	player.loop.Quit()
-	player.currentFile = ""
+	player.CurrentFile = ""
 	player.pipeline.BlockSetState(gst.StateNull)
 	player.pipeline.SendEvent(gst.NewFlushStartEvent())
 }
 
 func (player *VideoPlayer) PlayFile(file string) {
-	player.mu.Lock()
-	defer player.mu.Unlock()
 	src, err := player.pipeline.GetElementByName("src")
 
 	if err != nil {
@@ -110,7 +100,7 @@ func (player *VideoPlayer) PlayFile(file string) {
 			return
 		}
 	}
-	player.currentFile = file
+	player.CurrentFile = file
 	player.pipeline.BlockSetState(gst.StateNull)
 	player.pipeline.SendEvent(gst.NewFlushStartEvent())
 	player.pipeline.SendEvent(gst.NewFlushStopEvent(true))

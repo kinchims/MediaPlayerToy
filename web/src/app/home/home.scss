@@ -1,0 +1,19 @@
+.home {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+}
+
+:host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.content {
+    padding:1rem;
+}
+
+.nav {
+    background-color:rgba(15,15,15,.8);
+}

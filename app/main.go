@@ -1,99 +1,67 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
-	"os/exec"
+	"context"
+	"main/main/api"
+	"main/main/states"
+	"main/main/video"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
 	"github.com/go-gst/go-gst/gst"
 )
 
+var (
+	state         states.State
+	ctx           context.Context
+	postProcessor *video.PostProcessor
+	SrcFiles      string = "/home/sean/Development/MediaPlayerToy/files2-nc"
+	PlayableFiles string = "/home/sean/Development/MediaPlayerToy/files2-c"
+)
+
 func main() {
 	gst.Init(nil)
-	sigs := make(chan os.Signal, 1)
-	if len(os.Args) > 1 {
-		args := os.Args[1:]
-		mode := args[0]
+	ctx, _ = signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-		log.Printf("using mode %s", mode)
-		if mode == "trainer" {
-			trainer := NewRfidTrainer()
-
-			trainer.TrainCards()
-
-			os.Exit(0)
-		}
-	}
-
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	player := NewVideoPlayer()
-	reader := NewRFIDReader()
-
-	inactiveTimer := time.Duration(0)
+	postProcessor := video.NewPostProcessor(ctx, video.VideoOptions{Width: 800, Height: 400, OutputDir: PlayableFiles, Transform: "scale=800:480,vflip,hflip"})
+	controller := api.NewMPTAPI(api.MPTAPIOptions{FilesDirectory: SrcFiles, PlayableFileDirectory: PlayableFiles})
 	go func() {
-		for {
-			time.Sleep(time.Second)
-
-			if !player.IsPlaying() {
-				inactiveTimer += 1 * time.Second
-			} else {
-				inactiveTimer = 0
-			}
-
-			if inactiveTimer > time.Minute*5 {
-				cmd := exec.Command("shutdown", "-h", "now")
-				cmd.Run()
-			}
-		}
+		controller.Start()
 	}()
 
 	go func() {
 		for {
-			id := <-reader.CardData
-
-			if id == "" {
-				player.Dispose()
-			} else {
-				fileName := getFileByName(id)
-				if fileName == "" {
-					player.Dispose()
-				} else if player.currentFile != fileName {
-					player.Dispose()
-					player = NewVideoPlayerPreloaded(fileName)
-					player.Play()
-				} else {
-				}
+			select {
+			case <-controller.Operation:
+				SetState(nil)
+			case <-controller.Done:
+				SetState(states.NewNormalState())
+			case path := <-controller.FileUploaded:
+				postProcessor.ProcessFile(path)
+			case complete := <-postProcessor.ProcessingComplete:
+				controller.SendSSEMessage("completed", complete)
+			case started := <-postProcessor.ProcessingStarted:
+				controller.SendSSEMessage("started", started)
 			}
+
 		}
 	}()
 
-	reader.Start()
+	SetState(states.NewNormalState())
+	<-ctx.Done() //exit
 
-	<-sigs //exit
-
-	reader.Dispose()
-	player.Dispose()
+	SetState(nil)
+	state.Dispose()
 	gst.Deinit()
 }
 
-func getFileByName(fileId string) string {
-	directory := "/config/data"
-	files, err := os.ReadDir(directory)
-
-	if err != nil {
-		log.Fatal(err.Error())
+func SetState(next states.State) {
+	if state != nil {
+		state.Dispose()
 	}
 
-	for i, v := range files {
-		if strings.Contains(strings.TrimSuffix(v.Name(), ".mp4"), fileId) {
-			return fmt.Sprintf("%s/%s", directory, files[i].Name())
-		}
+	state = next
+	if state != nil {
+		state.Run(ctx)
 	}
-
-	return ""
 }

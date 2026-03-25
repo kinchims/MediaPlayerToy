@@ -1,4 +1,4 @@
-package main
+package rfid
 
 import (
 	"encoding/hex"
