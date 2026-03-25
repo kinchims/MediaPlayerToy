@@ -2,6 +2,7 @@ package rfid
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"runtime"
@@ -99,14 +100,29 @@ func (reader *RFIDReader) ReadCard(context context.Context) string {
 	}
 }
 
-func (reader *RFIDReader) WriteCard(context context.Context, data string) error {
-	err := reader.rfid.WriteCard(time.Minute, byte(commands.PICC_AUTHENT1B), 2, 0, stringIntoByte16(data), mfrc522.DefaultKey)
-	if err != nil {
-		return err
-	}
+func (reader *RFIDReader) WriteCard(ctx context.Context, data string) error {
+	now := time.Now()
+	c, cf := context.WithDeadline(ctx, now.Add(time.Minute*2))
+	defer cf()
 
-	fmt.Println("Write successful")
-	return nil
+	for {
+		select {
+		case <-c.Done():
+			if c.Err() == context.DeadlineExceeded {
+				return errors.New("request timeout")
+			}
+
+			return errors.New("request cancelled")
+		default:
+			err := reader.rfid.WriteCard(time.Second*2, byte(commands.PICC_AUTHENT1B), 2, 0, stringIntoByte16(data), mfrc522.DefaultKey)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Write successful")
+
+			return nil
+		}
+	}
 }
 
 func (reader *RFIDReader) Start(context context.Context) {

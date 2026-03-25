@@ -6,19 +6,18 @@ import { BehaviorSubject, Subject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class MPTAPI {
-  public processingStarted: BehaviorSubject<string> = new BehaviorSubject("");
-  public processingCompleted: BehaviorSubject<string> = new BehaviorSubject("");
+  public processingFile: BehaviorSubject<string> = new BehaviorSubject('');
 
   public constructor(private _httpClient: HttpClient) {
     const eventSource = new EventSource(`http://localhost:7000/sse`);
 
-    eventSource.addEventListener("completed", (x) => {
-      this.processingCompleted.next(x.data);
-    })
+    eventSource.addEventListener('completed', (x) => {
+        this.processingFile.next('');
+    });
 
-     eventSource.addEventListener("started", (x) => {
-      this.processingStarted.next(x.data);
-    })
+    eventSource.addEventListener('started', (x) => {
+      this.processingFile.next(x.data);
+    });
   }
 
   public getFiles() {

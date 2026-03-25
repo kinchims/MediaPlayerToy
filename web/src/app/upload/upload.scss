@@ -1,4 +1,6 @@
 .upload-container {
+    position: relative;
+
     .header {
         font-size: 1.2rem;
         display: flex;
@@ -7,5 +9,12 @@
 
     .content {
         font-size: 1rem;
+    }
+
+    .loader {
+        top: 0;
+        left: 0;
+        height: 20px;
+        width: 100%;
     }
 }
