@@ -1,6 +1,8 @@
-package main
+package rfid
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"runtime"
@@ -57,7 +59,7 @@ func NewRFIDReader() *RFIDReader {
 		}
 
 		// setting the antenna signal strength, signal strength from 0 to 7
-		rfid.SetAntennaGain(6)
+		rfid.SetAntennaGain(5)
 		reader.rfid = rfid
 
 		fmt.Println("Started rfid reader.")
@@ -74,15 +76,64 @@ func NewRFIDReader() *RFIDReader {
 }
 
 func (reader *RFIDReader) Dispose() {
-	reader.rfid.Halt()
-	reader.port.Close()
+	if reader.rfid != nil {
+		reader.rfid.Halt()
+	}
+
+	if reader.port != nil {
+		reader.port.Close()
+	}
 }
 
-func (reader *RFIDReader) Start() {
+func (reader *RFIDReader) ReadCard(context context.Context) string {
+	data, err := reader.rfid.ReadCard(0, commands.PICC_AUTHENT1B, 2, 0, mfrc522.DefaultKey)
+	if err == nil {
+		return string(data[:clen(data)])
+	} else {
+		str := err.Error()
+
+		if strings.Contains(str, "timeout waiting for IRQ edge") {
+			return reader.ReadCard(context)
+		}
+
+		return ""
+	}
+}
+
+func (reader *RFIDReader) WriteCard(ctx context.Context, data string) error {
+	now := time.Now()
+	c, cf := context.WithDeadline(ctx, now.Add(time.Minute*2))
+	defer cf()
+
+	for {
+		select {
+		case <-c.Done():
+			if c.Err() == context.DeadlineExceeded {
+				return errors.New("request timeout")
+			}
+
+			return errors.New("request cancelled")
+		default:
+			err := reader.rfid.WriteCard(time.Second*2, byte(commands.PICC_AUTHENT1B), 2, 0, stringIntoByte16(data), mfrc522.DefaultKey)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Write successful")
+
+			return nil
+		}
+	}
+}
+
+func (reader *RFIDReader) Start(context context.Context) {
 	arch := runtime.GOARCH
 	if strings.Contains(arch, "arm") {
 		go func() {
 			for {
+				if context.Err() != nil {
+					return
+				}
+
 				data, err := reader.rfid.ReadCard(time.Second*2, commands.PICC_AUTHENT1B, 2, 0, mfrc522.DefaultKey)
 				if err == nil {
 					str := string(data[:clen(data)])
@@ -93,7 +144,6 @@ func (reader *RFIDReader) Start() {
 					}
 				} else {
 					str := err.Error()
-					log.Print(str)
 
 					if strings.Contains(str, "timeout waiting for IRQ edge") {
 						select {

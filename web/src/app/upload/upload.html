@@ -1,0 +1,19 @@
+<div class="upload-container">
+  <div class="loader">
+    @if (uploading()) {
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    }
+  </div>
+  <div class="header">
+    <button mat-button (click)="showDialog()">Upload File</button>
+    <input type="file" style="visibility: hidden" accept="video/*" #upload />
+  </div>
+  <div class="information">
+    <span
+      >After uploading the file some post processing needs to happen to allow playback. This may
+      take some time before the file is playable on the device. Please keep the device on until the
+      file is no longer pending. The length of time required is dependent on the length and
+      resolution of the file uploaded.</span
+    >
+  </div>
+</div>

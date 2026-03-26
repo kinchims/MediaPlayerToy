@@ -1,99 +1,137 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
+	"encoding/json"
+	"main/main/api"
+	"main/main/native"
+	"main/main/states"
+	"main/main/video"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
 	"github.com/go-gst/go-gst/gst"
 )
 
+var (
+	state         states.State
+	ctx           context.Context
+	postProcessor *video.PostProcessor
+	SrcFiles      string  = "/home/sean/Development/MediaPlayerToy/files2-nc"
+	PlayableFiles string  = "/home/sean/Development/MediaPlayerToy/files2-c"
+	configPath    string  = "/etc/jukebox/config.txt"
+	iface         string  = "wlp9s0" //wlan0
+	config        *Config = &Config{}
+)
+
 func main() {
 	gst.Init(nil)
-	sigs := make(chan os.Signal, 1)
-	if len(os.Args) > 1 {
-		args := os.Args[1:]
-		mode := args[0]
+	ctx, _ = signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	loadConfig()
+	native.SetVolume(config.Volume)
+	native.BroadcastSSID(iface, config.WifiAPName, config.WifiPassword)
 
-		log.Printf("using mode %s", mode)
-		if mode == "trainer" {
-			trainer := NewRfidTrainer()
-
-			trainer.TrainCards()
-
-			os.Exit(0)
-		}
-	}
-
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	player := NewVideoPlayer()
-	reader := NewRFIDReader()
-
-	inactiveTimer := time.Duration(0)
+	postProcessor := video.NewPostProcessor(ctx, video.VideoOptions{Width: 800, Height: 400, OutputDir: PlayableFiles, Transform: "scale=800:480,vflip,hflip"})
+	controller := api.NewMPTAPI(api.MPTAPIOptions{FilesDirectory: SrcFiles, PlayableFileDirectory: PlayableFiles, Handlers: []api.Handler{SettingsHandler{}, PlayFileHandler{}}})
 	go func() {
-		for {
-			time.Sleep(time.Second)
-
-			if !player.IsPlaying() {
-				inactiveTimer += 1 * time.Second
-			} else {
-				inactiveTimer = 0
-			}
-
-			if inactiveTimer > time.Minute*5 {
-				cmd := exec.Command("shutdown", "-h", "now")
-				cmd.Run()
-			}
-		}
+		controller.Start()
 	}()
 
 	go func() {
 		for {
-			id := <-reader.CardData
-
-			if id == "" {
-				player.Dispose()
-			} else {
-				fileName := getFileByName(id)
-				if fileName == "" {
-					player.Dispose()
-				} else if player.currentFile != fileName {
-					player.Dispose()
-					player = NewVideoPlayerPreloaded(fileName)
-					player.Play()
-				} else {
-				}
+			select {
+			case <-controller.Operation:
+				SetState(nil)
+			case <-controller.Done:
+				SetState(NewNormalState())
+			case path := <-controller.FileUploaded:
+				postProcessor.ProcessFile(path)
+			case complete := <-postProcessor.ProcessingComplete:
+				controller.SendSSEMessage("completed", complete)
+			case started := <-postProcessor.ProcessingStarted:
+				controller.SendSSEMessage("started", started)
 			}
+
 		}
 	}()
 
-	reader.Start()
+	SetState(NewNormalState())
+	<-ctx.Done() //exit
+	native.StopBroadcasting()
 
-	<-sigs //exit
-
-	reader.Dispose()
-	player.Dispose()
+	SetState(nil)
+	state.Dispose()
 	gst.Deinit()
 }
 
-func getFileByName(fileId string) string {
-	directory := "/config/data"
-	files, err := os.ReadDir(directory)
-
-	if err != nil {
-		log.Fatal(err.Error())
+func SetState(next states.State) {
+	if state != nil {
+		state.Dispose()
 	}
 
-	for i, v := range files {
-		if strings.Contains(strings.TrimSuffix(v.Name(), ".mp4"), fileId) {
-			return fmt.Sprintf("%s/%s", directory, files[i].Name())
+	state = next
+	if state != nil {
+		state.Run(ctx)
+	}
+}
+
+func SetConfig(c Config) {
+	if c.WifiAPName != "" || c.WifiPassword != "" {
+		updated := false
+		if c.WifiAPName != "" {
+			if c.WifiAPName != config.WifiAPName {
+				updated = true
+				config.WifiAPName = c.WifiAPName
+			}
+		}
+
+		if c.WifiPassword != "" {
+			config.WifiPassword = c.WifiPassword
+			updated = true
+		}
+
+		if updated {
+			native.StopBroadcasting()
+			native.BroadcastSSID(iface, config.WifiAPName, config.WifiPassword)
 		}
 	}
 
-	return ""
+	if c.Volume != config.Volume {
+		config.Volume = c.Volume
+		native.SetVolume(config.Volume)
+	}
+
+	saveConfig()
+}
+
+func loadConfig() {
+	file, err := os.ReadFile(configPath)
+
+	if err != nil {
+		config = &Config{
+			WifiPassword: "UYGsBvyr",
+			WifiAPName:   "jukebox",
+			Volume:       50,
+		}
+	} else {
+		config = &Config{}
+		json.Unmarshal([]byte(file), config)
+	}
+}
+
+func saveConfig() {
+	data, err := json.Marshal(config)
+
+	if err != nil {
+		return
+	}
+
+	os.WriteFile(configPath, data, 0655)
+}
+
+type Config struct {
+	WifiAPName   string `json:"wifiAPName"`
+	WifiPassword string `json:"wifiPassword"`
+	Volume       int32  `json:"volume"`
 }

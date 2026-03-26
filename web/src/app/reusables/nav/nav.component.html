@@ -1,0 +1,31 @@
+<div class="nav-items">
+  <div class="list">
+    @for (item of items; track item.path) {
+      @if (item.icon) {
+        <div class="nav-item">
+          <button
+            mat-icon-button
+            [matTooltip]="item.name"
+            [routerLink]="item.path"
+            [disabled]="item.disabled"
+          >
+            <mat-icon color="primary" class="icon">{{ item.icon }}</mat-icon>
+          </button>
+        </div>
+      } @else {
+        <div class="nav-item" routerLinkActive="active-item">
+          @if (item.path != undefined) {
+            <a [routerLink]="item.path" [relativeTo]="active" [ngClass]="getClasses(item)">{{
+              item.name
+            }}</a>
+          } @else {
+            <a (click)="handle(item)" [ngClass]="getClasses(item)">{{ item.name }}</a>
+          }
+        </div>
+      }
+    }
+  </div>
+  <div class="end">
+    <ng-content select="position-end"> </ng-content>
+  </div>
+</div>
