@@ -22,6 +22,11 @@ export class Home {
       path: 'upload',
       icon: 'upload',
       name: 'Upload'
+    },
+     { 
+      path: 'settings',
+      icon: 'settings',
+      name: 'Settings'
     }
   ];
   public title$: WritableSignal<string | undefined> = signal(undefined);

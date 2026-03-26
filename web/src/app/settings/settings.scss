@@ -1,0 +1,30 @@
+.wifi {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.volume {
+  span {
+    margin-right: 1rem;
+  }
+
+  mat-slider {
+    width: 300px;
+  }
+}
+
+.actions {
+  align-self: flex-end;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

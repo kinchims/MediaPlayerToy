@@ -1,0 +1,34 @@
+<div class="settings container">
+  <form [formGroup]="form()" (ngSubmit)="saveConfig()">
+    <div class="wifi">
+      <div class="header">
+        <h4>Wifi</h4>
+      </div>
+      <div class="info">Updates the broadcasted Wifi access point</div>
+      <mat-form-field>
+        <mat-label>Wifi SSID</mat-label>
+        <input matInput formControlName="ssid" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Wifi Password</mat-label>
+        <input matInput formControlName="password" [type]="type()" />
+        @if (form().controls['password'].hasError('minlength')) {
+          <mat-error>Must be atleast 8 characters long</mat-error>
+        }
+
+        <button type="button" matSuffix matIconButton (click)="type.set(type() == 'password' ? 'text' : 'password')">
+          <mat-icon>{{type() == 'password' ? 'visibility' : 'visibility_off' }}</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+    <div class="volume">
+      <span>Volume</span>
+      <mat-slider min="1" max="100" step="1" showTickMarks discrete [displayWith]="formatLabel">
+        <input matSliderThumb formControlName="volume" />
+      </mat-slider>
+    </div>
+    <div class="actions">
+      <button mat-button type="submit" [disabled]="!form().valid || !form().dirty">Update</button>
+    </div>
+  </form>
+</div>
