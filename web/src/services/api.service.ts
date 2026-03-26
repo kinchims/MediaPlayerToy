@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { environment } from '../environments/environment';
-import { IMPTFile } from '../app/reusables/models/MPTFile';
+import { IMPTFile } from '../app/models/MPTFile';
 import { BehaviorSubject, Subject } from 'rxjs';
+import { Config } from '../app/models/config.model';
 
 @Injectable({ providedIn: 'root' })
 export class MPTAPI {
@@ -41,5 +42,17 @@ export class MPTAPI {
     formdata.append('file', file);
 
     return this._httpClient.post(`${environment.api_url}/files`, formdata);
+  }
+
+  public getSettings(){
+    return this._httpClient.get<Config>(`${environment.api_url}/settings`)
+  }
+
+  public setSettings(config: Config) {
+    return this._httpClient.post(`${environment.api_url}/settings`, config)
+  }
+
+  public playFile(file: IMPTFile){
+    return this._httpClient.post(`${environment.api_url}/files/${file.id}/play`, null)
   }
 }

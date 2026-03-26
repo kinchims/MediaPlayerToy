@@ -60,18 +60,6 @@ func (player *VideoPlayer) Pause() {
 	player.pipeline.BlockSetState(gst.StatePaused)
 }
 
-func (player *VideoPlayer) Stop() {
-	player.pipeline.BlockSetState(gst.StateNull)
-	player.pipeline.SendEvent(gst.NewFlushStartEvent())
-	src, err := player.pipeline.GetElementByName("src")
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	src.SetProperty("location", "")
-}
-
 func (player *VideoPlayer) Play() {
 	player.pipeline.SetState(gst.StatePlaying)
 }
@@ -85,27 +73,4 @@ func (player *VideoPlayer) Dispose() {
 	player.CurrentFile = ""
 	player.pipeline.BlockSetState(gst.StateNull)
 	player.pipeline.SendEvent(gst.NewFlushStartEvent())
-}
-
-func (player *VideoPlayer) PlayFile(file string) {
-	src, err := player.pipeline.GetElementByName("src")
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	currentFile, err := src.GetProperty("location")
-	if err == nil {
-		if currentFile == file {
-			return
-		}
-	}
-	player.CurrentFile = file
-	player.pipeline.BlockSetState(gst.StateNull)
-	player.pipeline.SendEvent(gst.NewFlushStartEvent())
-	player.pipeline.SendEvent(gst.NewFlushStopEvent(true))
-	src.SetProperty("location", file)
-	src.SyncStateWithParent()
-	player.pipeline.SendEvent(gst.NewReconfigureEvent())
-	player.pipeline.BlockSetState(gst.StatePlaying)
 }

@@ -27,6 +27,7 @@ type MPTAPI struct {
 type MPTAPIOptions struct {
 	FilesDirectory        string
 	PlayableFileDirectory string
+	Handlers              []Handler
 }
 
 type PlayableFile struct {
@@ -57,6 +58,10 @@ func (api *MPTAPI) Start() {
 	router.DELETE("/files/:id", api.deleteFile)
 	router.POST("/files", api.uploadFile)
 	router.GET("/sse", api.initializeSSE)
+
+	for _, v := range api.options.Handlers {
+		router.Any(v.Endpoint(), v.Action)
+	}
 
 	router.Run(":7000")
 }
